@@ -1,0 +1,294 @@
+---
+title: "R Assignment 1"
+author: "Anthony Stachowski"
+date: "2/18/2020"
+output:
+  pdf_document: 
+    latex_engine: xelatex
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r env_setup}
+# Clear out the environment
+rm(list = ls())
+# Load relevant libraries, installing them if you haven't already done so
+if (!require(tidyverse))
+{
+  install.packages("tidyverse")
+} 
+
+```
+
+```{r vehicles}
+library(tidyverse)
+
+# Load the data
+vehicles <- read_csv("https://itao-datasets.s3.amazonaws.com/vehicles.csv",
+                     col_types="inincicccici")
+vehicles <- vehicles %>%
+  mutate(class=as.factor(class),
+         drive=as.factor(drive),
+         make=as.factor(make),
+         transmissiontype=as.factor(transmissiontype))
+```
+
+## Problem 1: Guided Visualization
+In this part of the assignment, you will generate five graphs from this dataset meeting the provided requirements. You should be able to build these visualizations without using the dplyr library.
+
+### Part A
+Generate a scatterplot showing the miles per gallon that the vehicle experiences during city driving on the x-axis and the vehicle’s CO2 emissions on the y-axis.
+  
+```{r city miles per gallon vs. CO2 emissions}
+
+ggplot(data = vehicles) +
+  geom_point(mapping = aes(x = citympg,
+                           y = co2emissions))
+
+```
+  
+
+### Part B
+Create a second scatterplot showing the same information as the plot from Part A but use color to distinguish vehicles by drive type.
+  
+```{r city miles per gallon vs. CO2 emissions with vehicle drive type distinguised by color}
+
+ggplot(data = vehicles) +
+  geom_point(mapping = aes(x = citympg,
+                           y = co2emissions,
+                           color = drive))
+
+```
+  
+
+### Part C
+Create a stacked bar chart that shows the number of vehicles tested each year broken out by vehicle class.
+  
+```{r number of vehicles tested each year segmented by vehicle class}
+
+ggplot(data = vehicles) +
+  geom_bar(mapping = aes(x = year,
+                         fill = class)) +
+  scale_fill_brewer(palette = "RdYlGn")
+
+```
+  
+
+### Part D
+Create a set of histograms that shows the number of vehicles tested by their mileage per gallon during city driving. You should use one call to ggplot that creates separate histograms for each transmission type.
+  
+Note: We did not discuss histograms in class, so you may wish to consult the documentation for this geometry. Also, it might simplify things to create a single histogram first and then add commands that break it into different histograms for each transmission type.
+  
+```{r histogram showing number of vehicles tested by citympg broken out by trasmission type}
+
+ggplot(data = vehicles) +
+  geom_histogram(mapping = aes(x = citympg),
+                 binwidth = 1, 
+                 color = "gray0",
+                 fill = "blue") +
+  facet_wrap(~transmissiontype)
+
+```
+  
+
+## Problem 2 - Working with dplyr
+In this part of the assignment, you will expand your work to use the dplyr grammar of data manipulation.
+  
+For each part below, use a single R statement to perform the task. You may do this by joining together dplyr verbs and the ggplot commands with %>% and +.
+  
+### Part A
+Print a table showing the minimum, maximum, mean, and median city MPG for vehicles tested, broken out by vehicle class. All values should be displayed as integers. Use the as.integer() and round() functions, as necessary.
+  
+```{r table with various citympg values by vehicle class}
+
+vehicles %>%
+  group_by(class) %>%
+  summarise(minimum_citympg = as.integer(min(citympg)),
+            maximum_citympg = as.integer(max(citympg)),
+            mean_citympg = as.integer(round(mean(citympg),0)),
+            median_citympg = as.integer(round(median(citympg),0)))
+
+```
+  
+
+### Part B
+Display a line graph showing the change in average city vs. highway MPG over time. Do not round the data to integers this time. Show the city MPG as a red line and the highway MPG as a blue line.
+  
+You do not need to add a legend to this diagram. The structure of the data would make this somewhat complicated. We’ll discuss that more when we get to data wrangling.
+  
+```{r average mpg by year for both city and highway}
+
+vehicles %>%
+  group_by(year) %>%
+  summarise(avg_citympg = mean(citympg),
+            avg_highwaympg = mean(highwaympg)) %>%
+  ggplot(mapping = aes(x = year)) + 
+  geom_line(mapping = aes(y = avg_citympg),
+            color = "red") +
+  geom_line(mapping = aes(y = avg_highwaympg),
+            color = "blue") +
+  labs(x = "Year",
+       y = "Average MPG")
+
+```
+  
+
+### Part C
+Modify the graph above to also show the overall MPG, computed as the average of city and highway MPG. Plot this as a green line.
+
+  
+```{r average mpg by year for city, highway, and overall}
+
+##I interpreted the average of city and highway mpg to be the average 
+##once the mean of city and highway have been calculated.  Thus the 
+##calcualtion does not look at all of the mpg data and compute an average 
+##by year, but rather it first calcualtes an average mpg for city and 
+##then highway and then takes the average of these two numbers to be 
+##the overall average mpg. I believe you arrive at the same answer 
+##either way, but wanted to explain the logic in my calculation.
+
+vehicles %>%
+  group_by(year) %>%
+  summarise(avg_citympg = mean(citympg),
+            avg_highwaympg = mean(highwaympg)) %>%
+  mutate(avg_overallmpg = (avg_citympg + avg_highwaympg) / 2) %>%
+  ggplot(mapping = aes(x = year)) + 
+  geom_line(mapping = aes(y = avg_citympg),
+            color = "red") +
+  geom_line(mapping = aes(y = avg_highwaympg),
+            color = "blue") +
+  geom_line(mapping = aes(y = avg_overallmpg),
+            color = "green") +
+  labs(x = "Year",
+       y = "Average MPG")
+
+```
+  
+
+### Part D
+Modify the graph above to show separate graphs for each drive type.
+  
+```{r average mpg values by drive type for each year vehicles were tested}
+
+vehicles %>%
+  group_by(year, drive) %>%
+  summarise(avg_citympg = mean(citympg),
+            avg_highwaympg = mean(highwaympg)) %>%
+  mutate(avg_overallmpg = (avg_citympg + avg_highwaympg) / 2) %>%
+  ggplot(mapping = aes(x = year)) + 
+  geom_line(mapping = aes(y = avg_citympg),
+            color = "red") +
+  geom_line(mapping = aes(y = avg_highwaympg),
+            color = "blue") +
+  geom_line(mapping = aes(y = avg_overallmpg),
+            color = "green") +
+  labs(x = "Year",
+       y = "Average MPG") +
+  facet_wrap(~drive)
+
+```
+  
+
+## Problem 3 - Data Exploration and Visualization
+Use the strategies you learned in class as well as your own independent research to explore the vehicle testing and college datasets in more detail.
+  
+Create two interesting visualizations based upon your exploration. Take the time to beautify them. Your grade for this portion of the assignment will be based upon your technical ability to create the visualizations, their analytical uniqueness, and their appearance.
+  
+Feel free to use the techniques that we explored in class and/or to explore other features of ggplot2.
+  
+For each of your visualizations, provide a brief description of the insight that they provide. You should answer the question (with just a sentence or two), “What do we learn from this visualization?” You can provide your answer as comments in your code or, if you would like to explore a new technology, try using RMarkdown.
+  
+You may choose to use data from the vehicle dataset, the college dataset, or both.
+
+```{r all-wheel drive SUV vs. large car MPG performance 2009 - 2018}
+
+##The following chart shows that greater gains have been made in MPG 
+##for all-wheel drive SUVs versus all-wheel drive large cars in the 
+##period of 2009 - 2018.  This difference includes a considerable 
+##gain in city MPG (red line) for SUVs versus large cars in this period.
+
+vehicles %>%
+  group_by(year, 
+           class) %>%
+  filter(year > 2008 &
+         (class == "Large Cars" | class == "Sport Utility") &
+         drive == "All-Wheel Drive") %>%
+  summarise(avg_citympg = mean(citympg),
+            avg_highwaympg = mean(highwaympg)) %>%
+  ggplot(mapping = aes(x = year)) +
+  geom_line(mapping = aes(y = avg_citympg),
+            color = "red") +
+  geom_point(mapping = aes(y = avg_citympg),
+            color = "red") +
+  geom_line(mapping = aes(y = avg_highwaympg),
+            color = "blue") +
+  geom_point(mapping = aes(y = avg_highwaympg),
+            color = "blue") +
+  facet_wrap(~class) +
+  theme_bw() +
+  coord_cartesian(ylim = c(15,28)) +
+  labs(title = "Difference in MPG for All-Wheel Drive Large Cars and SUVs: 2009 - 2018", 
+       x = "Year",
+       y = "Average MPG: City - Red, Highway - Blue")
+  
+
+
+```
+  
+
+  
+```{r highway mpg for 6 and 8 cylinder pickups 2009-2018, Chevy, Ford, Toyota}
+
+##The following chart shows highway mpg changes from 2009 - 2018 for 
+##Chevrolet, Ford, and Toyota pickups, specifically 6 and 8 cylinder 
+##options. All three brands have made imporvements in 6 cylinder 
+##pickups in regard to highway mpp, Chevrolet saw solid improvements 
+##from 2013 - 2015. In regard to 8 cylinder pickups, Toyota has not 
+##been keeping pace with highway mpg improvements that Chevrolet 
+##and Ford have made.  The following charts also demonstrate the 
+##logical difference in highway mpg for 6 and 8 cylinder vehicles 
+##(i.e. 6 cylinder vehicles should have higher mpg vs 8 cylinder 
+##vehicles as they power less pistons).
+
+vehicles %>%
+  group_by(year,
+           make,
+           cylinders) %>%
+  filter((make == "Chevrolet" | make == "Ford" | make == "Toyota") &
+           class == "Pickup" &
+           year > 2008 &
+           (cylinders == 6 | cylinders == 8)) %>%
+  summarise(avg_highwaympg = mean(highwaympg)) %>%
+  ggplot(mapping = aes(x = year)) +
+  geom_line(mapping = aes(y = avg_highwaympg,
+                          color = make)) +
+  geom_point(mapping = aes(y = avg_highwaympg,
+                           color = make,
+                           shape = make)) +
+  facet_wrap(~cylinders) +
+  theme_bw() +
+  labs(title = "Highway MPG for 6 and 8 Cylinder Pickups (Select Makes): 2009 - 2018", 
+       x = "Year",
+       y = "Average Highway MPG")
+
+
+```
+  
+
+What You Should Turn In
+You should upload two files to Sakai:  
+● Your Rmd script (lastname_1.Rmd)  
+● A knitted PDF of your Rmd.  
+
+The R script (and report) should contain your solutions to all problem parts in one script.  
+
+Place comments at the beginning of the script that include your full name and the purpose of the code. Use comments to separate the sections from each other.
